@@ -1,4 +1,3 @@
-// DOM Elements - all the elements we need from HTML
 const passwordInput = document.getElementById("password");
 const lengthSlider = document.getElementById("length");
 const lengthDisplay = document.getElementById("length-value");
@@ -6,140 +5,93 @@ const uppercaseCheckbox = document.getElementById("uppercase");
 const lowercaseCheckbox = document.getElementById("lowercase");
 const numbersCheckbox = document.getElementById("numbers");
 const symbolsCheckbox = document.getElementById("symbols");
+const excludeSimilarCheckbox = document.getElementById("exclude-similar");
 const generateButton = document.getElementById("generate-btn");
 const copyButton = document.getElementById("copy-btn");
+const tooltip = document.getElementById("copy-tooltip");
 const strengthBar = document.querySelector(".strength-bar");
-const strengthText = document.querySelector(".strength-container p");
 const strengthLabel = document.getElementById("strength-label");
+const themeToggle = document.getElementById("theme-toggle");
 
-// Character sets
 const uppercaseLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const lowercaseLetters = "abcdefghijklmnopqrstuvwxyz";
 const numberCharacters = "0123456789";
 const symbolCharacters = "!@#$%^&*()-_=+[]{}|;:,.<>?/";
+const similarChars = "il1Lo0O";
 
+// Range slider
 lengthSlider.addEventListener("input", () => {
   lengthDisplay.textContent = lengthSlider.value;
 });
 
-generateButton.addEventListener("click", makePassword);
+// Generate password
+generateButton.addEventListener("click", generatePassword);
 
-function makePassword() {
+function generatePassword() {
   const length = Number(lengthSlider.value);
-  const includeUppercase = uppercaseCheckbox.checked;
-  const includeLowercase = lowercaseCheckbox.checked;
-  const includeNumbers = numbersCheckbox.checked;
-  const includeSymbols = symbolsCheckbox.checked;
+  let chars = "";
+  if (uppercaseCheckbox.checked) chars += uppercaseLetters;
+  if (lowercaseCheckbox.checked) chars += lowercaseLetters;
+  if (numbersCheckbox.checked) chars += numberCharacters;
+  if (symbolsCheckbox.checked) chars += symbolCharacters;
+  if (excludeSimilarCheckbox.checked) {
+    chars = chars.split("").filter(c => !similarChars.includes(c)).join("");
+  }
 
-  if (!includeUppercase && !includeLowercase && !includeNumbers && !includeSymbols) {
-    alert("Please select at least one char type.");
+  if (!chars.length) {
+    showToast("Select at least one character type!");
     return;
   }
 
-  const newPassword = createRandomPassword(
-    length,
-    includeUppercase,
-    includeLowercase,
-    includeNumbers,
-    includeSymbols
-  );
-
-  passwordInput.value = newPassword;
-  updateStrengthMeter(newPassword);
-}
-
-function updateStrengthMeter(password) {
-  const passwordLength = password.length;
-  const hasUppercase = /[A-Z]/.test(password);
-  const hasLowercase = /[a-z]/.test(password);
-  const hasNumbers = /[0-9]/.test(password);
-  const hasSymbols = /[!@#$%^&*()-_=+[\]{}|;:,.<>?]/.test(password);
-
-  let strengthScore = 0;
-
-  // here the .min will get the minimum value
-  // but this will make sure that "at maximum" you would get 40
-  strengthScore += Math.min(passwordLength * 2, 40);
-
-  if (hasUppercase) strengthScore += 15;
-  if (hasLowercase) strengthScore += 15;
-  if (hasNumbers) strengthScore += 15;
-  if (hasSymbols) strengthScore += 15;
-
-  // enforce minimum score for every short password
-  if (passwordLength < 8) {
-    strengthScore = Math.min(strengthScore, 40);
-  }
-
-  // ensure the width of the strength bar is a valid percentage
-  const safeScore = Math.max(5, Math.min(100, strengthScore));
-  strengthBar.style.width = safeScore + "%";
-
-  let strengthLabelText = "";
-  let barColor = "";
-
-  if (strengthScore < 40) {
-    // weak password
-    barColor = "#fc8181";
-    strengthLabelText = "Weak";
-  } else if (strengthScore < 70) {
-    // Medium password
-    barColor = "#fbd38d"; // Yellow
-    strengthLabelText = "Medium";
-  } else {
-    // Strong password
-    barColor = "#68d391"; // Green
-    strengthLabelText = "Strong";
-  }
-
-  strengthBar.style.backgroundColor = barColor;
-  strengthLabel.textContent = strengthLabelText;
-}
-
-function createRandomPassword(
-  length,
-  includeUppercase,
-  includeLowercase,
-  includeNumbers,
-  includeSymbols
-) {
-  let allCharacters = "";
-  // "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
-  if (includeUppercase) allCharacters += uppercaseLetters;
-  if (includeLowercase) allCharacters += lowercaseLetters;
-  if (includeNumbers) allCharacters += numberCharacters;
-  if (includeSymbols) allCharacters += symbolCharacters;
-
   let password = "";
-
   for (let i = 0; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * allCharacters.length);
-    password += allCharacters[randomIndex];
+    password += chars[Math.floor(Math.random() * chars.length)];
   }
 
-  return password;
+  passwordInput.value = password;
+  updateStrength(password);
 }
 
-window.addEventListener("DOMContentLoaded", makePassword);
+// Password strength
+function updateStrength(password) {
+  let score = 0;
+  if (/[A-Z]/.test(password)) score += 15;
+  if (/[a-z]/.test(password)) score += 15;
+  if (/[0-9]/.test(password)) score += 15;
+  if (/[!@#$%^&*()-_=+\[\]{}|;:,.<>?/]/.test(password)) score += 15;
+  score += Math.min(password.length * 2, 40);
+  strengthBar.style.width = Math.max(5, Math.min(100, score)) + "%";
 
+  if (score < 40) strengthLabel.textContent = "Weak";
+  else if (score < 70) strengthLabel.textContent = "Medium";
+  else strengthLabel.textContent = "Strong";
+}
+
+// Copy password to clipboard
 copyButton.addEventListener("click", () => {
   if (!passwordInput.value) return;
-
-  navigator.clipboard
-    .writeText(passwordInput.value)
-    .then(() => showCopySuccess())
-    .catch((error) => console.log("Could not copy:", error));
+  navigator.clipboard.writeText(passwordInput.value).then(() => {
+    tooltip.classList.add("show");
+    setTimeout(() => tooltip.classList.remove("show"), 1200);
+  });
 });
 
-function showCopySuccess() {
-  copyButton.classList.remove("far", "fa-copy");
-  copyButton.classList.add("fas", "fa-check");
-  copyButton.style.color = "#48bb78";
-
-  setTimeout(() => {
-    copyButton.classList.remove("fas", "fa-check");
-    copyButton.classList.add("far", "fa-copy");
-    copyButton.style.color = "";
-  }, 1500);
+// Toast
+function showToast(message) {
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2000);
 }
+
+// Theme toggle
+themeToggle.addEventListener("click", () => {
+  document.body.classList.toggle("dark");
+  const icon = themeToggle.querySelector("i");
+  icon.classList.toggle("fa-sun");
+  icon.classList.toggle("fa-moon");
+});
+
+// Auto-generate on load
+window.addEventListener("DOMContentLoaded", generatePassword);
